@@ -9,6 +9,22 @@ import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.plaf.UIResource;
+import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Cursor;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Insets;
+import java.awt.RenderingHints;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.Line2D;
+import java.awt.image.BufferedImage;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.time.LocalDateTime;
@@ -50,6 +66,7 @@ public class Main extends JFrame {
     // ---- Components created by Main.form. Each name must match a "field name" in the form. ----
     private JPanel rootPanel;
     private JTabbedPane jTabbedPaneOakDonuts;
+    private JLabel jLabelTitle;
 
     // Order tab
     private JComboBox<String> jComboBoxCategory;
@@ -101,6 +118,7 @@ public class Main extends JFrame {
         setUpOrderTab();
         setUpMenuTab();
         setUpHistoryTab();
+        applyTheme();
 
         refreshMenuList();
         refreshMenuTable();
@@ -633,6 +651,132 @@ public class Main extends JFrame {
     private boolean confirm(String question) {
         return JOptionPane.showConfirmDialog(this, question, "Please confirm",
                 JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION;
+    }
+
+    // =====================================================================
+    // Theme (colors, buttons, tables, donut icon)
+    // =====================================================================
+
+    private static final Color CHOCOLATE = new Color(78, 52, 46);
+    private static final Color CREAM = new Color(255, 248, 236);
+    private static final Color RASPBERRY = new Color(194, 24, 91);
+    private static final Color CARAMEL = new Color(160, 97, 43);
+    private static final Color SOFT_PINK = new Color(250, 212, 225);
+    private static final Color LINE_TAN = new Color(222, 196, 160);
+
+    private void applyTheme() {
+        Image donut = donutImage(64);
+        setIconImage(donut);                                    // window + taskbar icon
+        jLabelTitle.setIcon(new ImageIcon(donut.getScaledInstance(40, 40, Image.SCALE_SMOOTH)));
+        jLabelTitle.setIconTextGap(12);
+
+        paintPanels(rootPanel, CREAM);
+        jTabbedPaneOakDonuts.setFont(jTabbedPaneOakDonuts.getFont().deriveFont(Font.BOLD, 13f));
+
+        // Main actions in raspberry, clear/remove in caramel, delete in chocolate.
+        for (JButton b : new JButton[]{jButtonAddToOrder, jButtonCheckout, jButtonInsertMenu,
+                jButtonUpdateMenu, jButtonUpdateOrder}) styleButton(b, RASPBERRY);
+        for (JButton b : new JButton[]{jButtonRemoveItem, jButtonClear, jButtonClearMenu,
+                jButtonClearOrder}) styleButton(b, CARAMEL);
+        for (JButton b : new JButton[]{jButtonDeleteMenu, jButtonDeleteOrder}) styleButton(b, CHOCOLATE);
+
+        for (JTable t : new JTable[]{jTableCart, jTableMenu, jTableOrders}) styleTable(t);
+        jTableOrders.getColumnModel().getColumn(1).setPreferredWidth(150);   // room for the full date
+
+        jListMenu.setFont(jListMenu.getFont().deriveFont(14f));
+        jListMenu.setFixedCellHeight(28);
+        jListMenu.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+        jListMenu.setSelectionBackground(SOFT_PINK);
+        jListMenu.setSelectionForeground(Color.BLACK);
+    }
+
+    /** Gives every panel you didn't color in the designer the same background. */
+    private static void paintPanels(Container parent, Color color) {
+        if (parent instanceof JPanel && parent.getBackground() instanceof UIResource) {
+            parent.setBackground(color);
+        }
+        for (Component child : parent.getComponents()) {
+            if (child instanceof JSpinner) continue;   // a spinner's text box is a panel too
+            if (child instanceof Container) paintPanels((Container) child, color);
+        }
+    }
+
+    /** Flat colored button. The Windows look ignores button colors unless the normal fill is turned off. */
+    private static void styleButton(JButton b, Color color) {
+        b.setBackground(color);
+        b.setForeground(Color.WHITE);
+        b.setFont(b.getFont().deriveFont(Font.BOLD));
+        b.setContentAreaFilled(false);   // must come BEFORE setOpaque: it resets opaque to false
+        b.setOpaque(true);
+        b.setBorderPainted(false);
+        b.setFocusPainted(false);
+        b.setMargin(new Insets(7, 16, 7, 16));
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.setRolloverEnabled(true);
+        // Darker while pressed, slightly lighter on hover.
+        b.getModel().addChangeListener(e -> {
+            ButtonModel m = b.getModel();
+            b.setBackground(m.isPressed() ? color.darker() : m.isRollover() ? blend(color, Color.WHITE, 0.15) : color);
+        });
+    }
+
+    private static void styleTable(JTable table) {
+        table.setRowHeight(26);
+        table.setShowVerticalLines(false);
+        table.setGridColor(LINE_TAN);
+        table.setSelectionBackground(SOFT_PINK);
+        table.setSelectionForeground(Color.BLACK);
+
+        // Chocolate header row with cream text.
+        DefaultTableCellRenderer header = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object value, boolean selected,
+                                                           boolean focused, int row, int column) {
+                super.getTableCellRendererComponent(t, value, false, false, row, column);
+                setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+                return this;
+            }
+        };
+        header.setBackground(CHOCOLATE);
+        header.setForeground(CREAM);
+        header.setFont(table.getFont().deriveFont(Font.BOLD));
+        header.setHorizontalAlignment(SwingConstants.CENTER);
+        table.getTableHeader().setDefaultRenderer(header);
+    }
+
+    private static Color blend(Color a, Color b, double amount) {
+        return new Color(
+                (int) (a.getRed() + (b.getRed() - a.getRed()) * amount),
+                (int) (a.getGreen() + (b.getGreen() - a.getGreen()) * amount),
+                (int) (a.getBlue() + (b.getBlue() - a.getBlue()) * amount));
+    }
+
+    /** Draws a pink-frosted donut with sprinkles, so no image file is needed. */
+    private static Image donutImage(int size) {
+        BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        double s = size;
+
+        g.setColor(new Color(214, 158, 90));                              // dough
+        g.fill(new Ellipse2D.Double(s * .04, s * .04, s * .92, s * .92));
+        g.setColor(new Color(240, 98, 146));                              // frosting
+        g.fill(new Ellipse2D.Double(s * .11, s * .11, s * .78, s * .78));
+
+        g.setStroke(new BasicStroke((float) (s * .05), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        Color[] sprinkles = {Color.WHITE, new Color(255, 214, 0), new Color(77, 182, 172)};
+        for (int i = 0; i < 10; i++) {                                    // sprinkles around the ring
+            double angle = i * Math.PI / 5, r = s * .27;
+            double x = s / 2 + Math.cos(angle) * r, y = s / 2 + Math.sin(angle) * r;
+            double dx = Math.cos(angle + 1.2) * s * .04, dy = Math.sin(angle + 1.2) * s * .04;
+            g.setColor(sprinkles[i % 3]);
+            g.draw(new Line2D.Double(x - dx, y - dy, x + dx, y + dy));
+        }
+
+        g.setComposite(AlphaComposite.Clear);                             // punch the hole
+        g.fill(new Ellipse2D.Double(s * .36, s * .36, s * .28, s * .28));
+        g.dispose();
+        return img;
     }
 
     public static void main(String[] args) {

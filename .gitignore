@@ -1,0 +1,7 @@
+# Build output
+target/
+out/
+
+# Derby database and log (created automatically when the app runs)
+donutstanddb/
+derby.log
