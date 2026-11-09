@@ -44,25 +44,32 @@ public class DB {
     }
 
     private void initializeSchema() throws SQLException {
-        // Run in dependency order; preserve all existing data on later launches.
-        if (!tableExists("HD_CUSTOMER")) {
+        // Only creates tables that don't exist yet, so saved data survives restarts.
+        if (!tableExists("OD_MENU")) {
             try (Statement st = mConnection.createStatement()) {
-                st.executeUpdate("CREATE TABLE HD_Customer (" +
-                        "Customer_ID INT NOT NULL PRIMARY KEY, " +
-                        "Customer_First_Name VARCHAR(20) NOT NULL, " +
-                        "Customer_Last_Name VARCHAR(20) NOT NULL, " +
-                        "Customer_FAVORITE_MEAL VARCHAR(20) NOT NULL)");
+                st.executeUpdate("CREATE TABLE OD_Menu (" +
+                        "Item_ID INT NOT NULL PRIMARY KEY, " +
+                        "Item_Name VARCHAR(40) NOT NULL, " +
+                        "Category VARCHAR(20) NOT NULL, " +
+                        "Price DECIMAL(6,2) NOT NULL)");
+
+                // Starting menu, so the Menu list isn't empty on first launch.
+                st.executeUpdate("INSERT INTO OD_Menu VALUES " +
+                        "(1, 'Glazed Donut', 'Donut', 1.49), " +
+                        "(2, 'Chocolate Sprinkles', 'Donut', 1.79), " +
+                        "(3, 'Boston Creme', 'Donut', 1.99), " +
+                        "(4, 'House Coffee', 'Drink', 2.00), " +
+                        "(5, 'Latte', 'Drink', 3.00), " +
+                        "(6, 'Breakfast Sandwich', 'Food', 4.50)");
             }
         }
-        if (!tableExists("HD_ORDER")) {
+        if (!tableExists("OD_ORDER")) {
             try (Statement st = mConnection.createStatement()) {
-                st.executeUpdate("CREATE TABLE HD_Order (" +
-                        "Order_ID INT NOT NULL PRIMARY KEY, " +
-                        "Order_Price INT NOT NULL, " +
-                        "Order_Date_TIME TIMESTAMP NOT NULL, " +
-                        "Item_Name VARCHAR(20) NOT NULL, " +
-                        "Customer_ID INT NOT NULL, " +
-                        "FOREIGN KEY (Customer_ID) REFERENCES HD_Customer(Customer_ID))");
+                st.executeUpdate("CREATE TABLE OD_Order (" +
+                        "Transaction_ID INT NOT NULL PRIMARY KEY, " +
+                        "Order_Date TIMESTAMP NOT NULL, " +
+                        "Items VARCHAR(1000) NOT NULL, " +
+                        "Total DECIMAL(8,2) NOT NULL)");
             }
         }
     }
