@@ -1,52 +1,41 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package entity;
+
 /**
- *
- * @author Gokhan
+ * One row of the OD_Order table: a completed checkout.
  */
 public class Order
 {
-    private int ID;
-    private int price;
-    private String dateTime;
-    private String itemName;
-    private int customerID;
+    private int transactionID;
+    private String orderDate;   // "yyyy-MM-dd HH:mm:ss"
+    private String items;       // e.g. "2x Boston Creme (Icing: Chocolate, Filling: Custard); 2x Glazed Donut"
+    private double total;
 
-    public Order(int ID, int price, String dateTime, String itemName, int customerID)
+    public Order(int transactionID, String orderDate, String items, double total)
     {
-        this.ID = ID;
-        this.price = price;
-        this.dateTime = dateTime;
-        this.itemName = itemName;
-        this.customerID = customerID;
+        this.transactionID = transactionID;
+        this.orderDate = orderDate;
+        this.items = items;
+        this.total = total;
     }
 
-    public int getID() {
-        return ID;
+    public int getTransactionID() {
+        return transactionID;
     }
 
-    public int getPrice() {
-        return price;
+    public String getOrderDate() {
+        return orderDate;
     }
 
-    public String getDateTime() {
-        return dateTime;
+    public String getItems() {
+        return items;
     }
 
-    public String getItemName() {
-        return itemName;
-    }
-
-    public int getCustomerID() {
-        return customerID;
+    public double getTotal() {
+        return total;
     }
 
     @Override
     public String toString() {
-        return "Order{" + "ID=" + ID + ", price=" + price + ", dateTime=" + dateTime + ", itemName=" + itemName + ", customerID=" + customerID + '}';
+        return "Order{" + "transactionID=" + transactionID + ", orderDate=" + orderDate + ", items=" + items + ", total=" + total + '}';
     }
 }

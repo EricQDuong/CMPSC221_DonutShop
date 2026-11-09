@@ -1,0 +1,13 @@
+----------------------------------------------------------------
+Mon Nov 09 11:20:52 EST 2026:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.17.1.0 - (1913217): instance a816c00e-01a1-c11c-ccab-00001e6e6b38 
+on database directory C:\Users\ericq\IdeaProjects\CMPSC412_DonutShop\donutstanddb with class loader jdk.internal.loader.ClassLoaders$AppClassLoader@33909752 
+Loaded from file:/C:/derby/lib/derby.jar
+java.vendor=Amazon.com Inc.
+java.runtime.version=21.0.12.1+9-LTS
+user.dir=C:\Users\ericq\IdeaProjects\CMPSC412_DonutShop
+os.name=Windows 11
+os.arch=amd64
+os.version=10.0
+derby.system.home=null
+Database Class Loader started - derby.database.classpath=''
