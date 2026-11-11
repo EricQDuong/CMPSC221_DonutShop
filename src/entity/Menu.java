@@ -1,3 +1,14 @@
+/**
+ * Project: DonutShop
+ * Purpose Details: Entity class for one row of the OD_Menu table: a menu item
+ *                  (donut, drink, or food) with its ID, name, category, and
+ *                  price.
+ * Course: CMPSC 221
+ * Author: Eric Duong
+ * Date Developed: 11/8/2026
+ * Last Date Changed: 11/10/2026
+ * Revision: 1.0
+ */
 package entity;
 
 /**

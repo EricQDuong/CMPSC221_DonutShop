@@ -1,3 +1,14 @@
+/**
+ * Project: DonutShop
+ * Purpose Details: Entity class for one row of the OD_Order table: a
+ *                  completed order with its transaction ID, date, items
+ *                  ordered, and total.
+ * Course: CMPSC 221
+ * Author: Eric Duong
+ * Date Developed: 11/8/2026
+ * Last Date Changed: 11/10/2026
+ * Revision: 1.0
+ */
 package entity;
 
 /**

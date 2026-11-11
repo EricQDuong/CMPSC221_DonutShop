@@ -1,3 +1,15 @@
+/**
+ * Project: DonutShop
+ * Purpose Details: Manages the single connection to the embedded Apache Derby
+ *                  database (donutstanddb). On first run it creates the
+ *                  OD_Menu and OD_Order tables and adds the starting menu
+ *                  items. Adapted from the HotDogStand class example.
+ * Course: CMPSC 221
+ * Author: Eric Duong
+ * Date Developed: 11/8/2026
+ * Last Date Changed: 11/10/2026
+ * Revision: 1.0
+ */
 package core;
 
 import java.sql.Connection;

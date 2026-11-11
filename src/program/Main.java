@@ -1,3 +1,16 @@
+/**
+ * Project: DonutShop
+ * Purpose Details: Main window (JFrame) of the Oak Donuts ordering system.
+ *                  Its layout comes from Main.form; this class handles every
+ *                  user action: building an order and checking out, managing
+ *                  menu items, and viewing, updating, and deleting past
+ *                  orders. Also applies the app's color theme.
+ * Course: CMPSC 221
+ * Author: Eric Duong
+ * Date Developed: 11/8/2026
+ * Last Date Changed: 11/10/2026
+ * Revision: 1.0
+ */
 package program;
 
 import entity.Menu;

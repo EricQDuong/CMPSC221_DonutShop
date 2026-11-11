@@ -1,3 +1,13 @@
+/**
+ * Project: DonutShop
+ * Purpose Details: Data Access Object for the OD_Menu table. Runs the SQL to
+ *                  insert, read, update, and delete menu items.
+ * Course: CMPSC 221
+ * Author: Eric Duong
+ * Date Developed: 11/8/2026
+ * Last Date Changed: 11/10/2026
+ * Revision: 1.0
+ */
 package entity;
 
 import java.util.ArrayList;

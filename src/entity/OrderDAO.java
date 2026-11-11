@@ -1,3 +1,14 @@
+/**
+ * Project: DonutShop
+ * Purpose Details: Data Access Object for the OD_Order table. Runs the SQL to
+ *                  save, read, update, and delete orders, and picks the next
+ *                  transaction ID at checkout.
+ * Course: CMPSC 221
+ * Author: Eric Duong
+ * Date Developed: 11/8/2026
+ * Last Date Changed: 11/10/2026
+ * Revision: 1.0
+ */
 package entity;
 
 import java.util.ArrayList;

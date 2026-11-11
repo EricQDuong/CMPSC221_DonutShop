@@ -1,7 +1,14 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+/**
+ * Project: DonutShop
+ * Purpose Details: Generic Data Access Object interface listing the CRUD
+ *                  operations (get, getAll, insert, update, delete) that
+ *                  every table class must implement. Adapted from the
+ *                  HotDogStand class example.
+ * Course: CMPSC 221
+ * Author: Eric Duong
+ * Date Developed: 11/8/2026
+ * Last Date Changed: 11/10/2026
+ * Revision: 1.0
  */
 package entity;
 import java.util.List;
