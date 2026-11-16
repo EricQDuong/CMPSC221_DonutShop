@@ -1,13 +1,14 @@
 /**
  * Project: DonutShop
  * Purpose Details: Data Access Object for the OD_Order table. Runs the SQL to
- *                  save, read, update, and delete orders, and picks the next
- *                  transaction ID at checkout.
+ *                  save, read, update, and delete orders, picks the next
+ *                  transaction ID at checkout, and totals sales for the
+ *                  Sales Summary tab.
  * Course: CMPSC 221
  * Author: Eric Duong
  * Date Developed: 11/8/2026
- * Last Date Changed: 11/10/2026
- * Revision: 1.0
+ * Last Date Changed: 11/15/2026
+ * Revision: 1.1
  */
 package entity;
 
@@ -20,6 +21,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -104,6 +106,33 @@ public class OrderDAO implements DAO<Order>
         } catch (SQLException ex) {
             System.err.println(ex.toString());
             return 1001;
+        }
+    }
+
+    /**
+     * Sales totals for the Sales Summary tab. The database does the math with
+     * COUNT, SUM and AVG. (getDouble returns 0 when there are no orders yet.)
+     * @return
+     */
+    public SalesSummary getSalesSummary() {
+        DB db = DB.getInstance();
+        try {
+            ResultSet all = db.executeQuery("SELECT COUNT(*), SUM(Total), AVG(Total) FROM OD_Order");
+            all.next();
+            int orderCount = all.getInt(1);
+            double revenue = all.getDouble(2);
+            double average = all.getDouble(3);
+
+            // Today = every order since midnight.
+            PreparedStatement stmt = db.getPreparedStatement(
+                    "SELECT COUNT(*), SUM(Total) FROM OD_Order WHERE Order_Date >= ?");
+            stmt.setTimestamp(1, Timestamp.valueOf(LocalDate.now().atStartOfDay()));
+            ResultSet today = stmt.executeQuery();
+            today.next();
+            return new SalesSummary(orderCount, revenue, average, today.getInt(1), today.getDouble(2));
+        } catch (SQLException ex) {
+            System.err.println(ex.toString());
+            return new SalesSummary(0, 0, 0, 0, 0);
         }
     }
 

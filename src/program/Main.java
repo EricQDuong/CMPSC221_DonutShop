@@ -3,13 +3,14 @@
  * Purpose Details: Main window (JFrame) of the Oak Donuts ordering system.
  *                  Its layout comes from Main.form; this class handles every
  *                  user action: building an order and checking out, managing
- *                  menu items, and viewing, updating, and deleting past
- *                  orders. Also applies the app's color theme.
+ *                  menu items and their pictures, viewing, updating, and
+ *                  deleting past orders, and the Sales Summary report. Also
+ *                  applies the app's color theme.
  * Course: CMPSC 221
  * Author: Eric Duong
  * Date Developed: 11/8/2026
- * Last Date Changed: 11/10/2026
- * Revision: 1.0
+ * Last Date Changed: 11/15/2026
+ * Revision: 1.1
  */
 package program;
 
@@ -17,6 +18,7 @@ import entity.Menu;
 import entity.MenuDAO;
 import entity.Order;
 import entity.OrderDAO;
+import entity.SalesSummary;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -24,6 +26,8 @@ import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.plaf.UIResource;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.imageio.ImageIO;
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -46,6 +50,16 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.awt.BorderLayout;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 
 /**
  * Oak Donuts (OD) - menu and ordering system.
@@ -56,9 +70,14 @@ import java.util.Optional;
  * IMPORTANT: Run it from IntelliJ so the form gets compiled into this class.
  *
  * Tabs:
- *   Order         - pick items, build an order, Checkout saves it (Create)
- *   Manage Menu   - insert / update / delete menu items (full CRUD on OD_Menu)
+ *   Place Order   - pick items, build an order, Checkout saves it (Create)
+ *   Manage Menu   - insert / update / delete menu items (full CRUD on OD_Menu),
+ *                   plus a picture for each item
  *   Order History - view, update and delete saved orders (Read/Update/Delete on OD_Order)
+ *   Sales Summary - totals and best sellers, calculated with SQL COUNT / SUM / AVG
+ *
+ * Item pictures are PNG files in the project's "images" folder, named by Item ID
+ * (images/1.png is Glazed Donut). Items without a picture show the donut logo.
  */
 public class Main extends JFrame {
     private static final String[] CATEGORIES = {"Donut", "Drink", "Food"};
@@ -75,6 +94,11 @@ public class Main extends JFrame {
     // The order being built on the Order tab. It lives in memory until Checkout saves it.
     private final List<CartLine> cart = new ArrayList<>();
     private final DefaultListModel<Menu> menuListModel = new DefaultListModel<>();
+
+    // Item pictures: images/<Item_ID>.png, next to the donutstanddb folder.
+    private static final File PICTURE_FOLDER = new File("images");
+    private final Map<String, ImageIcon> pictureCache = new HashMap<>();
+    private final BarChart bestSellerChart = new BarChart();
 
     // ---- Components created by Main.form. Each name must match a "field name" in the form. ----
     private JPanel rootPanel;
@@ -97,6 +121,7 @@ public class Main extends JFrame {
     private JButton jButtonRemoveItem;
     private JButton jButtonClear;
     private JButton jButtonCheckout;
+    private JLabel jLabelItemPicture;
 
     // Manage Menu tab
     private JTextField jTextFieldMenuID;
@@ -108,6 +133,8 @@ public class Main extends JFrame {
     private JButton jButtonDeleteMenu;
     private JButton jButtonClearMenu;
     private JTable jTableMenu;
+    private JLabel jLabelMenuPicture;
+    private JButton jButtonChoosePicture;
 
     // Order History tab
     private JTextField jTextFieldTransactionID;
@@ -119,24 +146,35 @@ public class Main extends JFrame {
     private JButton jButtonClearOrder;
     private JTable jTableOrders;
 
+    // Sales Summary tab
+    private JLabel jLabelStatOrders;
+    private JLabel jLabelStatRevenue;
+    private JLabel jLabelStatAverage;
+    private JLabel jLabelStatToday;
+    private JLabel jLabelStatTodayCount;
+    private JPanel jPanelBestSellers;
+
     public Main() {
         // rootPanel and every component above are created by IntelliJ from Main.form.
         setContentPane(rootPanel);
         setTitle("Oak Donuts (OD) - Ordering System");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setJMenuBar(buildMenuBar());
-        setSize(1150, 640);
+        setSize(1150, 700);
         setLocationRelativeTo(null);
 
         setUpOrderTab();
         setUpMenuTab();
         setUpHistoryTab();
+        setUpSalesTab();
+        setUpTooltips();
         applyTheme();
 
         refreshMenuList();
         refreshMenuTable();
         refreshOrdersTable();
         refreshCart();
+        refreshSalesSummary();
     }
 
     // =====================================================================
@@ -173,6 +211,22 @@ public class Main extends JFrame {
         jButtonRemoveItem.addActionListener(e -> removeCartLine());
         jButtonClear.addActionListener(e -> clearCart());
         jButtonCheckout.addActionListener(e -> checkout());
+
+        // Each row of the menu list shows a small picture of the item.
+        jListMenu.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index,
+                                                          boolean selected, boolean focused) {
+                super.getListCellRendererComponent(list, value, index, selected, focused);
+                setIcon(pictureIcon(((Menu) value).getID(), 36));
+                setIconTextGap(10);
+                return this;
+            }
+        });
+        // The big picture under Item Options shows the selected item, with its name underneath.
+        jLabelItemPicture.setHorizontalAlignment(SwingConstants.CENTER);
+        jLabelItemPicture.setHorizontalTextPosition(SwingConstants.CENTER);
+        jLabelItemPicture.setVerticalTextPosition(SwingConstants.BOTTOM);
     }
 
     private void setUpMenuTab() {
@@ -184,6 +238,14 @@ public class Main extends JFrame {
         jButtonUpdateMenu.addActionListener(e -> updateMenuItem());
         jButtonDeleteMenu.addActionListener(e -> deleteMenuItem());
         jButtonClearMenu.addActionListener(e -> clearMenuFields());
+        jButtonChoosePicture.addActionListener(e -> choosePicture());
+
+        // Typing or selecting an Item ID shows that item's picture.
+        jLabelMenuPicture.setHorizontalAlignment(SwingConstants.CENTER);
+        jLabelMenuPicture.setHorizontalTextPosition(SwingConstants.CENTER);
+        jLabelMenuPicture.setVerticalTextPosition(SwingConstants.BOTTOM);
+        jTextFieldMenuID.getDocument().addDocumentListener(onTextChange(this::showMenuPicture));
+        showMenuPicture();
 
         // Selecting a table row copies its values into the edit fields.
         jTableMenu.getSelectionModel().addListSelectionListener(e -> {
@@ -250,8 +312,9 @@ public class Main extends JFrame {
         about.addActionListener(e -> JOptionPane.showMessageDialog(this,
                 "Oak Donuts (OD) - Menu & Ordering System\n\n"
                         + "Order: pick an item, set options and quantity, Add to Order, then Checkout.\n"
-                        + "Manage Menu: add, change or remove menu items.\n"
-                        + "Order History: select a past order to update or delete it.\n\n"
+                        + "Manage Menu: add, change or remove menu items, and choose their pictures.\n"
+                        + "Order History: select a past order to update or delete it.\n"
+                        + "Sales Summary: order count, revenue, average order and best sellers.\n\n"
                         + "Data is stored in an Apache Derby database (donutstanddb).",
                 "About Oak Donuts", JOptionPane.INFORMATION_MESSAGE));
         help.add(about);
@@ -300,6 +363,14 @@ public class Main extends JFrame {
         boolean isDonut = item != null && item.getCategory().equalsIgnoreCase("Donut");
         jComboBoxIcing.setEnabled(isDonut);
         jComboBoxFilling.setEnabled(isDonut);
+
+        if (item == null) {
+            jLabelItemPicture.setIcon(null);
+            jLabelItemPicture.setText("Pick an item");
+        } else {
+            jLabelItemPicture.setIcon(pictureIcon(item.getID(), 150));
+            jLabelItemPicture.setText(item.getItemName());
+        }
     }
 
     private void addToOrder() {
@@ -480,6 +551,68 @@ public class Main extends JFrame {
         jTextFieldMenuPrice.setText("");
     }
 
+    /** Shows the picture for the Item ID in the field, or a hint when no ID is entered. */
+    private void showMenuPicture() {
+        int id;
+        try {
+            id = Integer.parseInt(jTextFieldMenuID.getText().trim());
+        } catch (NumberFormatException e) {
+            id = -1;
+        }
+        if (id <= 0) {
+            jLabelMenuPicture.setIcon(null);
+            jLabelMenuPicture.setText("Pick an item to see its picture");
+        } else {
+            jLabelMenuPicture.setIcon(pictureIcon(id, 110));
+            jLabelMenuPicture.setText(pictureFile(id).isFile() ? "" : "No picture yet");
+        }
+    }
+
+    /** Lets the user pick an image file and saves it as this item's picture. */
+    private void choosePicture() {
+        execute("Choose picture", () -> {
+            int id = positiveNumber(jTextFieldMenuID, "Item ID");
+            JFileChooser chooser = new JFileChooser();
+            chooser.setDialogTitle("Choose a picture for item " + id);
+            chooser.setFileFilter(new FileNameExtensionFilter(
+                    "Pictures (PNG, JPG, GIF, BMP)", "png", "jpg", "jpeg", "gif", "bmp"));
+            if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+                savePicture(id, chooser.getSelectedFile());
+            }
+        });
+    }
+
+    /** Copies the picture into images/<id>.png (shrunk to at most 512 px) so it stays with the project. */
+    private void savePicture(int itemID, File source) {
+        BufferedImage picture;
+        try {
+            picture = ImageIO.read(source);
+        } catch (IOException e) {
+            picture = null;
+        }
+        if (picture == null)
+            throw new IllegalArgumentException("that file isn't a picture Java can open. Use a PNG, JPG, GIF or BMP.");
+
+        double scale = Math.min(1.0, 512.0 / Math.max(picture.getWidth(), picture.getHeight()));
+        int w = Math.max(1, (int) Math.round(picture.getWidth() * scale));
+        int h = Math.max(1, (int) Math.round(picture.getHeight() * scale));
+        BufferedImage copy = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = copy.createGraphics();
+        g.drawImage(new ImageIcon(picture.getScaledInstance(w, h, Image.SCALE_SMOOTH)).getImage(), 0, 0, null);
+        g.dispose();
+
+        try {
+            Files.createDirectories(PICTURE_FOLDER.toPath());
+            ImageIO.write(copy, "png", pictureFile(itemID));
+        } catch (IOException e) {
+            throw new IllegalStateException("the picture couldn't be saved: " + e.getMessage());
+        }
+        pictureCache.clear();          // forget the old picture so the new one shows everywhere
+        jListMenu.repaint();
+        showSelectedItem();
+        showMenuPicture();
+    }
+
     // =====================================================================
     // Order History tab (Read / Update / Delete on OD_Order)
     // =====================================================================
@@ -539,8 +672,144 @@ public class Main extends JFrame {
     }
 
     // =====================================================================
+    // Sales Summary tab (SQL COUNT / SUM / AVG on OD_Order)
+    // =====================================================================
+
+    private void setUpSalesTab() {
+        jPanelBestSellers.setLayout(new BorderLayout());
+        jPanelBestSellers.add(bestSellerChart, BorderLayout.CENTER);
+        bestSellerChart.setFont(jLabelStatOrders.getFont().deriveFont(Font.PLAIN, 14f));
+        // Recalculate whenever a tab is opened, so the numbers are always current.
+        jTabbedPaneOakDonuts.addChangeListener(e -> refreshSalesSummary());
+    }
+
+    private void refreshSalesSummary() {
+        SalesSummary summary = orderDAO.getSalesSummary();
+        jLabelStatOrders.setText(String.valueOf(summary.getOrderCount()));
+        jLabelStatRevenue.setText(money(summary.getRevenue()));
+        jLabelStatAverage.setText(money(summary.getAverageOrder()));
+        jLabelStatToday.setText(money(summary.getTodayRevenue()));
+        int today = summary.getTodayOrderCount();
+        jLabelStatTodayCount.setText(today + (today == 1 ? " order today" : " orders today"));
+        bestSellerChart.setData(itemsSold());
+    }
+
+    /** Adds up how many of each item were sold by reading every order's Items text, e.g. "2x Glazed Donut". */
+    private Map<String, Integer> itemsSold() {
+        Map<String, Integer> sold = new HashMap<>();
+        List<Order> orders = orderDAO.getAll();
+        if (orders == null) return sold;
+        Pattern line = Pattern.compile("(?:^|;)\\s*(\\d{1,6})x ([^;(]+)");
+        for (Order order : orders) {
+            Matcher m = line.matcher(order.getItems());
+            while (m.find()) {
+                sold.merge(m.group(2).trim(), Integer.parseInt(m.group(1)), Integer::sum);
+            }
+        }
+        return sold;
+    }
+
+    /** Horizontal bar chart of items sold, drawn with Graphics2D. The best seller is raspberry. */
+    private static class BarChart extends JComponent {
+        private List<Map.Entry<String, Integer>> rows = new ArrayList<>();
+
+        void setData(Map<String, Integer> sold) {
+            rows = new ArrayList<>(sold.entrySet());
+            rows.sort((a, b) -> b.getValue() - a.getValue());          // most sold first
+            if (rows.size() > 10) rows = new ArrayList<>(rows.subList(0, 10));
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            Graphics2D g = (Graphics2D) graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g.setFont(getFont());
+            FontMetrics fm = g.getFontMetrics();
+            if (rows.isEmpty()) {
+                g.setColor(Color.GRAY);
+                g.drawString("No orders yet. Check out an order and the best sellers show up here.",
+                        12, 12 + fm.getAscent());
+                g.dispose();
+                return;
+            }
+            int labelWidth = 0;
+            for (Map.Entry<String, Integer> row : rows) labelWidth = Math.max(labelWidth, fm.stringWidth(row.getKey()));
+            int rowHeight = Math.max(fm.getHeight() + 8, Math.min(40, (getHeight() - 8) / rows.size()));
+            int barLeft = labelWidth + 28;
+            int barRoom = Math.max(20, getWidth() - barLeft - 60);
+            int most = rows.get(0).getValue();
+            for (int i = 0; i < rows.size(); i++) {
+                int top = 4 + i * rowHeight;
+                int barHeight = rowHeight - 10;
+                int textY = top + (barHeight + fm.getAscent() - fm.getDescent()) / 2;
+                int width = Math.max(4, (int) Math.round(rows.get(i).getValue() * (double) barRoom / most));
+                g.setColor(CHOCOLATE);
+                g.drawString(rows.get(i).getKey(), 12, textY);
+                g.setColor(i == 0 ? RASPBERRY : CARAMEL);
+                g.fillRoundRect(barLeft, top, width, barHeight, 8, 8);
+                g.setColor(CHOCOLATE);
+                g.drawString(String.valueOf(rows.get(i).getValue()), barLeft + width + 8, textY);
+            }
+            g.dispose();
+        }
+    }
+
+    // =====================================================================
     // Helpers
     // =====================================================================
+
+    /** Short hints that pop up when the mouse rests on a control. */
+    private void setUpTooltips() {
+        jTextFieldSearch.setToolTipText("Type part of an item's name");
+        jListMenu.setToolTipText("Double-click an item to add it to the order");
+        jButtonAddToOrder.setToolTipText("Add the selected item to the order");
+        jButtonRemoveItem.setToolTipText("Remove the selected line from the order");
+        jButtonClear.setToolTipText("Empty the whole order");
+        jButtonCheckout.setToolTipText("Save this order to the database");
+        jButtonInsertMenu.setToolTipText("Add a new menu item with these values");
+        jButtonUpdateMenu.setToolTipText("Save changes to the item with this ID");
+        jButtonDeleteMenu.setToolTipText("Delete the item with this ID");
+        jButtonClearMenu.setToolTipText("Clear the fields");
+        jButtonChoosePicture.setToolTipText("Pick an image file to use as this item's picture");
+        jButtonUpdateOrder.setToolTipText("Save changes to the selected order");
+        jButtonDeleteOrder.setToolTipText("Delete the selected order");
+        jButtonClearOrder.setToolTipText("Clear the fields");
+    }
+
+    private static File pictureFile(int itemID) {
+        return new File(PICTURE_FOLDER, itemID + ".png");
+    }
+
+    /** The item's picture fitted into a size x size square. Items without a picture get the donut logo. */
+    private ImageIcon pictureIcon(int itemID, int size) {
+        return pictureCache.computeIfAbsent(itemID + "@" + size, key -> {
+            File file = pictureFile(itemID);
+            BufferedImage picture = null;
+            if (file.isFile()) {
+                try {
+                    picture = ImageIO.read(file);
+                } catch (IOException e) {
+                    System.err.println("Couldn't read " + file + ": " + e.getMessage());
+                }
+            }
+            return new ImageIcon(picture == null ? donutImage(size) : fit(picture, size));
+        });
+    }
+
+    /** Shrinks a picture to fit inside a size x size square, keeping its shape, centered. */
+    private static Image fit(BufferedImage picture, int size) {
+        double scale = Math.min((double) size / picture.getWidth(), (double) size / picture.getHeight());
+        int w = Math.max(1, (int) Math.round(picture.getWidth() * scale));
+        int h = Math.max(1, (int) Math.round(picture.getHeight() * scale));
+        Image scaled = new ImageIcon(picture.getScaledInstance(w, h, Image.SCALE_SMOOTH)).getImage();
+        BufferedImage square = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = square.createGraphics();
+        g.drawImage(scaled, (size - w) / 2, (size - h) / 2, null);
+        g.dispose();
+        return square;
+    }
 
     /** One line of the current order: which item, its options, and how many. */
     private static class CartLine {
@@ -690,14 +959,14 @@ public class Main extends JFrame {
         for (JButton b : new JButton[]{jButtonAddToOrder, jButtonCheckout, jButtonInsertMenu,
                 jButtonUpdateMenu, jButtonUpdateOrder}) styleButton(b, RASPBERRY);
         for (JButton b : new JButton[]{jButtonRemoveItem, jButtonClear, jButtonClearMenu,
-                jButtonClearOrder}) styleButton(b, CARAMEL);
+                jButtonClearOrder, jButtonChoosePicture}) styleButton(b, CARAMEL);
         for (JButton b : new JButton[]{jButtonDeleteMenu, jButtonDeleteOrder}) styleButton(b, CHOCOLATE);
 
         for (JTable t : new JTable[]{jTableCart, jTableMenu, jTableOrders}) styleTable(t);
         jTableOrders.getColumnModel().getColumn(1).setPreferredWidth(150);   // room for the full date
 
         jListMenu.setFont(jListMenu.getFont().deriveFont(14f));
-        jListMenu.setFixedCellHeight(28);
+        jListMenu.setFixedCellHeight(44);          // room for the item pictures
         jListMenu.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
         jListMenu.setSelectionBackground(SOFT_PINK);
         jListMenu.setSelectionForeground(Color.BLACK);

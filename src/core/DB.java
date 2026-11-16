@@ -7,8 +7,8 @@
  * Course: CMPSC 221
  * Author: Eric Duong
  * Date Developed: 11/8/2026
- * Last Date Changed: 11/10/2026
- * Revision: 1.0
+ * Last Date Changed: 11/15/2026
+ * Revision: 1.1
  */
 package core;
 
@@ -72,7 +72,13 @@ public class DB {
                         "(3, 'Boston Creme', 'Donut', 1.99), " +
                         "(4, 'House Coffee', 'Drink', 2.00), " +
                         "(5, 'Latte', 'Drink', 3.00), " +
-                        "(6, 'Breakfast Sandwich', 'Food', 4.50)");
+                        "(6, 'Breakfast Sandwich', 'Food', 4.50), " +
+                        "(7, 'Jelly Filled', 'Donut', 1.99), " +
+                        "(8, 'Maple Bar', 'Donut', 2.25), " +
+                        "(9, 'Old Fashioned', 'Donut', 1.69), " +
+                        "(10, 'Iced Coffee', 'Drink', 2.75), " +
+                        "(11, 'Hot Chocolate', 'Drink', 2.50), " +
+                        "(12, 'Bagel & Cream Cheese', 'Food', 2.99)");
             }
         }
         if (!tableExists("OD_ORDER")) {
